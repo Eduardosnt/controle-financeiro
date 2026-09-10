@@ -10,8 +10,8 @@ app.use(cors());
 const dbPath = path.resolve(__dirname, '../financeiro.db');
 const db = new Database(dbPath);
 
-// Criando a tabela com a coluna 'usuario'
-db.prepare(`
+// Garante que a tabela existe com a estrutura correta (incluindo 'usuario')
+db.exec(`
   CREATE TABLE IF NOT EXISTS transacoes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario TEXT NOT NULL,
@@ -21,9 +21,9 @@ db.prepare(`
     categoria TEXT NOT NULL,
     data TEXT NOT NULL
   )
-`).run();
+`);
 
-// Cadastrar transação com usuário
+// Cadastrar transação
 app.post('/transacoes', (req, res) => {
   try {
     const { usuario, descricao, valor, tipo, categoria, data } = req.body;
@@ -36,19 +36,16 @@ app.post('/transacoes', (req, res) => {
   }
 });
 
-// Listar transações filtrando por usuário
+// Listar transações por usuário
 app.get('/transacoes', (req, res) => {
   try {
     const { usuario } = req.query;
-    let query = `SELECT * FROM transacoes`;
     let rows;
 
     if (usuario) {
-      query += ` WHERE usuario = ? ORDER BY id DESC`;
-      rows = db.prepare(query).all(usuario);
+      rows = db.prepare(`SELECT * FROM transacoes WHERE usuario = ? ORDER BY id DESC`).all(usuario);
     } else {
-      query += ` ORDER BY id DESC`;
-      rows = db.prepare(query).all();
+      rows = db.prepare(`SELECT * FROM transacoes ORDER BY id DESC`).all();
     }
 
     res.json(rows);
@@ -57,23 +54,23 @@ app.get('/transacoes', (req, res) => {
   }
 });
 
-// Rota de resumo e análise financeira do mês
+// Resumo e análise financeira
 app.get('/resumo', (req, res) => {
   try {
-    const { usuario, mes } = req.query; // mes no formato 'YYYY-MM'
+    const { usuario, mes } = req.query;
     if (!usuario) {
       return res.status(400).json({ erro: 'Usuário obrigatório' });
     }
 
-    let queryTransacoes = `SELECT * FROM transacoes WHERE usuario = ?`;
+    let query = `SELECT * FROM transacoes WHERE usuario = ?`;
     let params: any[] = [usuario];
 
     if (mes) {
-      queryTransacoes += ` AND data LIKE ?`;
+      query += ` AND data LIKE ?`;
       params.push(`${mes}%`);
     }
 
-    const transacoes = db.prepare(queryTransacoes).all(...params);
+    const transacoes = db.prepare(query).all(...params);
 
     let totalReceitas = 0;
     let totalGastos = 0;
@@ -90,12 +87,11 @@ app.get('/resumo', (req, res) => {
 
     const saldo = totalReceitas - totalGastos;
     
-    // Sugestão simples de economia
     let sugestao = "Suas finanças estão equilibradas!";
     if (totalGastos > totalReceitas) {
-      sugestao = "Atenção: Você gastou mais do que recebeu este mês. Revise os gastos com Lazer.";
+      sugestao = "Atenção: Você gastou mais do que recebeu este mês. Revise os gastos.";
     } else if (porCategoria['Lazer'] && porCategoria['Lazer'] > (totalReceitas * 0.3)) {
-      sugestao = "Dica: Seus gastos com Lazer passaram de 30% da sua receita. Tente segurar um pouco.";
+      sugestao = "Dica: Seus gastos com Lazer passaram de 30% da sua receita.";
     }
 
     res.json({
@@ -110,6 +106,7 @@ app.get('/resumo', (req, res) => {
   }
 });
 
+// Deletar transação
 app.delete('/transacoes/:id', (req, res) => {
   try {
     const { id } = req.params;
