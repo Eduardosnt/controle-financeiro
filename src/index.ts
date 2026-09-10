@@ -36,7 +36,7 @@ app.post('/transacoes', (req, res) => {
   }
 });
 
-// Listar transações (filtrando opcionalmente por usuário)
+// Listar transações filtrando por usuário
 app.get('/transacoes', (req, res) => {
   try {
     const { usuario } = req.query;
@@ -52,6 +52,59 @@ app.get('/transacoes', (req, res) => {
     }
 
     res.json(rows);
+  } catch (err: any) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// Rota de resumo e análise financeira do mês
+app.get('/resumo', (req, res) => {
+  try {
+    const { usuario, mes } = req.query; // mes no formato 'YYYY-MM'
+    if (!usuario) {
+      return res.status(400).json({ erro: 'Usuário obrigatório' });
+    }
+
+    let queryTransacoes = `SELECT * FROM transacoes WHERE usuario = ?`;
+    let params: any[] = [usuario];
+
+    if (mes) {
+      queryTransacoes += ` AND data LIKE ?`;
+      params.push(`${mes}%`);
+    }
+
+    const transacoes = db.prepare(queryTransacoes).all(...params);
+
+    let totalReceitas = 0;
+    let totalGastos = 0;
+    const porCategoria: { [key: string]: number } = {};
+
+    transacoes.forEach((t: any) => {
+      if (t.tipo === 'receita') {
+        totalReceitas += t.valor;
+      } else {
+        totalGastos += t.valor;
+        porCategoria[t.categoria] = (porCategoria[t.categoria] || 0) + t.valor;
+      }
+    });
+
+    const saldo = totalReceitas - totalGastos;
+    
+    // Sugestão simples de economia
+    let sugestao = "Suas finanças estão equilibradas!";
+    if (totalGastos > totalReceitas) {
+      sugestao = "Atenção: Você gastou mais do que recebeu este mês. Revise os gastos com Lazer.";
+    } else if (porCategoria['Lazer'] && porCategoria['Lazer'] > (totalReceitas * 0.3)) {
+      sugestao = "Dica: Seus gastos com Lazer passaram de 30% da sua receita. Tente segurar um pouco.";
+    }
+
+    res.json({
+      totalReceitas,
+      totalGastos,
+      saldo,
+      porCategoria,
+      sugestao
+    });
   } catch (err: any) {
     res.status(500).json({ erro: err.message });
   }

@@ -10,11 +10,31 @@
     <div class="max-w-md mx-auto bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-xl font-bold text-emerald-400">Controle Financeiro</h1>
-            <!-- Seletor de Perfil -->
-            <select id="filtroUsuario" onchange="mudarUsuario()" class="bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold">
+            <select id="filtroUsuario" onchange="atualizarDados()" class="bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold">
                 <option value="Eduardo">Eduardo</option>
-                <option value="Amor">Amor</option> <!-- Troque pelo nome dela se preferir -->
+                <option value="Marcele">Marcele</option>
             </select>
+        </div>
+
+        <!-- Cards de Resumo Mensal -->
+        <div class="grid grid-cols-3 gap-2 mb-6">
+            <div class="bg-slate-900 p-3 rounded border border-slate-700 text-center">
+                <span class="text-xs text-slate-400 block">Receitas</span>
+                <span id="resumoReceita" class="text-emerald-400 font-bold text-sm">R$ 0,00</span>
+            </div>
+            <div class="bg-slate-900 p-3 rounded border border-slate-700 text-center">
+                <span class="text-xs text-slate-400 block">Gastos</span>
+                <span id="resumoGasto" class="text-rose-400 font-bold text-sm">R$ 0,00</span>
+            </div>
+            <div class="bg-slate-900 p-3 rounded border border-slate-700 text-center">
+                <span class="text-xs text-slate-400 block">Saldo</span>
+                <span id="resumoSaldo" class="font-bold text-sm">R$ 0,00</span>
+            </div>
+        </div>
+
+        <!-- Alerta / Sugestão de Economia -->
+        <div id="cardSugestao" class="hidden mb-6 bg-slate-900 border border-emerald-500/30 p-3 rounded text-xs text-emerald-300">
+            💡 <span id="textoSugestao"></span>
         </div>
 
         <!-- Formulário de cadastro -->
@@ -59,19 +79,23 @@
         <!-- Lista de transações -->
         <div class="mt-8">
             <h2 class="text-lg font-semibold mb-3 border-b border-slate-700 pb-2">Histórico Recente</h2>
-            <div id="listaTransacoes" class="space-y-2 max-h-60 overflow-y-auto">
-                <!-- Os itens entram aqui via JS -->
-            </div>
+            <div id="listaTransacoes" class="space-y-2 max-h-60 overflow-y-auto"></div>
         </div>
     </div>
 
     <script>
         const API_URL = 'https://controle-financeiro-v2ol.onrender.com/transacoes';
+        const RESUMO_URL = 'https://controle-financeiro-v2ol.onrender.com/resumo';
 
         document.getElementById('data').valueAsDate = new Date();
 
         function getUsuarioAtual() {
             return document.getElementById('filtroUsuario').value;
+        }
+
+        async function carregarTudo() {
+            await carregarTransacoes();
+            await carregarResumo();
         }
 
         async function carregarTransacoes() {
@@ -111,15 +135,36 @@
             }
         }
 
-        function mudarUsuario() {
-            carregarTransacoes();
+        async function carregarResumo() {
+            try {
+                const usuario = getUsuarioAtual();
+                const mesAtual = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+                const res = await fetch(`${RESUMO_URL}?usuario=${encodeURIComponent(usuario)}&mes=${mesAtual}`);
+                const dados = await res.json();
+
+                document.getElementById('resumoReceita').innerText = `R$ ${dados.totalReceitas.toFixed(2)}`;
+                document.getElementById('resumoGasto').innerText = `R$ ${dados.totalGastos.toFixed(2)}`;
+                
+                const elSaldo = document.getElementById('resumoSaldo');
+                elSaldo.innerText = `R$ ${dados.saldo.toFixed(2)}`;
+                elSaldo.className = dados.saldo >= 0 ? 'text-emerald-400 font-bold text-sm' : 'text-rose-400 font-bold text-sm';
+
+                if (dados.sugestao) {
+                    document.getElementById('cardSugestao').classList.remove('hidden');
+                    document.getElementById('textoSugestao').innerText = dados.sugestao;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar resumo", e);
+            }
+        }
+
+        function atualizarDados() {
+            carregarTudo();
         }
 
         document.getElementById('formGasto').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const btn = document.querySelector('button[type="submit"]');
-            const textoOriginal = btn.innerText;
             btn.innerText = 'Salvando...';
             btn.disabled = true;
 
@@ -133,34 +178,29 @@
                     data: document.getElementById('data').value
                 };
 
-                const response = await fetch(API_URL, {
+                await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) {
-                    const erro = await response.json();
-                    alert('Erro no servidor: ' + erro.erro);
-                } else {
-                    document.getElementById('descricao').value = '';
-                    document.getElementById('valor').value = '';
-                    carregarTransacoes();
-                }
+                document.getElementById('descricao').value = '';
+                document.getElementById('valor').value = '';
+                carregarTudo();
             } catch (error) {
-                alert('Erro ao conectar com a API.');
+                alert('Erro ao salvar.');
             } finally {
-                btn.innerText = textoOriginal;
+                btn.innerText = 'Salvar Transação';
                 btn.disabled = false;
             }
         });
 
         async function deletar(id) {
             await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            carregarTransacoes();
+            carregarTudo();
         }
 
-        carregarTransacoes();
+        carregarTudo();
     </script>
 </body>
 </html>
