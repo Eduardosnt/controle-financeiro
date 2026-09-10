@@ -9,8 +9,8 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4">
     <div class="max-w-md mx-auto bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-xl font-bold text-emerald-400">Controle Financeiro</h1>
-            <select id="filtroUsuario" onchange="atualizarDados()" class="bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold">
+            <h1 id="tituloApp" class="text-xl font-bold text-emerald-400 transition-colors">Controle Financeiro</h1>
+            <select id="filtroUsuario" onchange="atualizarDados()" class="bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold transition-colors">
                 <option value="Eduardo">Eduardo</option>
                 <option value="Marcele">Marcele</option>
             </select>
@@ -41,17 +41,17 @@
         <form id="formGasto" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium mb-1">Descrição</label>
-                <input type="text" id="descricao" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" placeholder="Ex: Mercado, Lanche...">
+                <input type="text" id="descricao" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500 transition-colors" placeholder="Ex: Mercado, Lanche...">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="block text-sm font-medium mb-1">Valor (R$)</label>
-                    <input type="number" step="0.01" id="valor" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" placeholder="0.00">
+                    <input type="number" step="0.01" id="valor" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500 transition-colors" placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Tipo</label>
-                    <select id="tipo" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
+                    <select id="tipo" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500 transition-colors">
                         <option value="gasto">Gasto</option>
                         <option value="receita">Receita</option>
                     </select>
@@ -60,7 +60,7 @@
 
             <div>
                 <label class="block text-sm font-medium mb-1">Categoria</label>
-                <select id="categoria" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
+                <select id="categoria" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500 transition-colors">
                     <option value="Essencial">Essencial (Faculdade/Fixos)</option>
                     <option value="Dívida">Dívida / Empréstimo</option>
                     <option value="Lazer">Lazer</option>
@@ -70,10 +70,10 @@
 
             <div>
                 <label class="block text-sm font-medium mb-1">Data</label>
-                <input type="date" id="data" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
+                <input type="date" id="data" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500 transition-colors">
             </div>
 
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2 rounded transition">Salvar Transação</button>
+            <button type="submit" id="btnSalvar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2 rounded transition">Salvar Transação</button>
         </form>
 
         <!-- Lista de transações -->
@@ -93,7 +93,28 @@
             return document.getElementById('filtroUsuario').value;
         }
 
+        function atualizarTemaVisual() {
+            const usuario = getUsuarioAtual();
+            const titulo = document.getElementById('tituloApp');
+            const selectUser = document.getElementById('filtroUsuario');
+            const btn = document.getElementById('btnSalvar');
+            const cardSugestao = document.getElementById('cardSugestao');
+
+            if (usuario === 'Marcele') {
+                titulo.className = "text-xl font-bold text-pink-400 transition-colors";
+                selectUser.className = "bg-slate-900 border border-pink-700 rounded p-1 text-sm text-white focus:outline-none focus:border-pink-500 font-semibold transition-colors";
+                btn.className = "w-full bg-pink-600 hover:bg-pink-500 text-white font-bold p-2 rounded transition";
+                cardSugestao.className = "hidden mb-6 bg-slate-900 border border-pink-500/30 p-3 rounded text-xs text-pink-300";
+            } else {
+                titulo.className = "text-xl font-bold text-emerald-400 transition-colors";
+                selectUser.className = "bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold transition-colors";
+                btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2 rounded transition";
+                cardSugestao.className = "hidden mb-6 bg-slate-900 border border-emerald-500/30 p-3 rounded text-xs text-emerald-300";
+            }
+        }
+
         async function carregarTudo() {
+            atualizarTemaVisual();
             await carregarTransacoes();
             await carregarResumo();
         }
@@ -106,7 +127,7 @@
                 const lista = document.getElementById('listaTransacoes');
                 lista.innerHTML = '';
 
-                if (dados.length === 0) {
+                if (!Array.isArray(dados) || dados.length === 0) {
                     lista.innerHTML = '<p class="text-xs text-slate-500 text-center py-2">Nenhuma transação encontrada.</p>';
                     return;
                 }
@@ -138,20 +159,26 @@
         async function carregarResumo() {
             try {
                 const usuario = getUsuarioAtual();
-                const mesAtual = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+                const mesAtual = new Date().toISOString().slice(0, 7);
                 const res = await fetch(`${RESUMO_URL}?usuario=${encodeURIComponent(usuario)}&mes=${mesAtual}`);
                 const dados = await res.json();
 
-                document.getElementById('resumoReceita').innerText = `R$ ${dados.totalReceitas.toFixed(2)}`;
-                document.getElementById('resumoGasto').innerText = `R$ ${dados.totalGastos.toFixed(2)}`;
+                if (dados.erro) return;
+
+                document.getElementById('resumoReceita').innerText = `R$ ${(dados.totalReceitas || 0).toFixed(2)}`;
+                document.getElementById('resumoGasto').innerText = `R$ ${(dados.totalGastos || 0).toFixed(2)}`;
                 
                 const elSaldo = document.getElementById('resumoSaldo');
-                elSaldo.innerText = `R$ ${dados.saldo.toFixed(2)}`;
-                elSaldo.className = dados.saldo >= 0 ? 'text-emerald-400 font-bold text-sm' : 'text-rose-400 font-bold text-sm';
+                const saldo = dados.saldo || 0;
+                elSaldo.innerText = `R$ ${saldo.toFixed(2)}`;
+                elSaldo.className = saldo >= 0 ? 'text-emerald-400 font-bold text-sm' : 'text-rose-400 font-bold text-sm';
 
+                const cardSugestao = document.getElementById('cardSugestao');
                 if (dados.sugestao) {
-                    document.getElementById('cardSugestao').classList.remove('hidden');
+                    cardSugestao.classList.remove('hidden');
                     document.getElementById('textoSugestao').innerText = dados.sugestao;
+                } else {
+                    cardSugestao.classList.add('hidden');
                 }
             } catch (e) {
                 console.error("Erro ao carregar resumo", e);
@@ -164,7 +191,8 @@
 
         document.getElementById('formGasto').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.querySelector('button[type="submit"]');
+            const btn = document.getElementById('btnSalvar');
+            const textoOriginal = btn.innerText;
             btn.innerText = 'Salvando...';
             btn.disabled = true;
 
@@ -190,7 +218,7 @@
             } catch (error) {
                 alert('Erro ao salvar.');
             } finally {
-                btn.innerText = 'Salvar Transação';
+                btn.innerText = textoOriginal;
                 btn.disabled = false;
             }
         });
