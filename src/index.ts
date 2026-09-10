@@ -7,15 +7,14 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Conectando ao Banco de Dados SQLite na raiz do projeto
 const dbPath = path.resolve(__dirname, '../financeiro.db');
 const db = new Database(dbPath);
-console.log('Banco de dados conectado com sucesso!');
 
-// Criando a tabela de transações se ela não existir
+// Criando a tabela com a coluna 'usuario'
 db.prepare(`
   CREATE TABLE IF NOT EXISTS transacoes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario TEXT NOT NULL,
     descricao TEXT NOT NULL,
     valor REAL NOT NULL,
     tipo TEXT NOT NULL,
@@ -24,12 +23,12 @@ db.prepare(`
   )
 `).run();
 
-// Rota para cadastrar um novo gasto ou receita
+// Cadastrar transação com usuário
 app.post('/transacoes', (req, res) => {
   try {
-    const { descricao, valor, tipo, categoria, data } = req.body;
-    const stmt = db.prepare(`INSERT INTO transacoes (descricao, valor, tipo, categoria, data) VALUES (?, ?, ?, ?, ?)`);
-    const info = stmt.run(descricao, valor, tipo, categoria, data);
+    const { usuario, descricao, valor, tipo, categoria, data } = req.body;
+    const stmt = db.prepare(`INSERT INTO transacoes (usuario, descricao, valor, tipo, categoria, data) VALUES (?, ?, ?, ?, ?, ?)`);
+    const info = stmt.run(usuario || 'Eduardo', descricao, valor, tipo, categoria, data);
     
     res.status(201).json({ id: info.lastInsertRowid, mensagem: 'Salvo com sucesso!' });
   } catch (err: any) {
@@ -37,17 +36,27 @@ app.post('/transacoes', (req, res) => {
   }
 });
 
-// Rota para listar todas as transações
+// Listar transações (filtrando opcionalmente por usuário)
 app.get('/transacoes', (req, res) => {
   try {
-    const rows = db.prepare(`SELECT * FROM transacoes ORDER BY id DESC`).all();
+    const { usuario } = req.query;
+    let query = `SELECT * FROM transacoes`;
+    let rows;
+
+    if (usuario) {
+      query += ` WHERE usuario = ? ORDER BY id DESC`;
+      rows = db.prepare(query).all(usuario);
+    } else {
+      query += ` ORDER BY id DESC`;
+      rows = db.prepare(query).all();
+    }
+
     res.json(rows);
   } catch (err: any) {
     res.status(500).json({ erro: err.message });
   }
 });
 
-// Rota para deletar uma transação
 app.delete('/transacoes/:id', (req, res) => {
   try {
     const { id } = req.params;

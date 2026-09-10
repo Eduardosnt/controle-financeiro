@@ -8,7 +8,14 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4">
     <div class="max-w-md mx-auto bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
-        <h1 class="text-2xl font-bold text-center mb-6 text-emerald-400">Meu Controle Financeiro</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl font-bold text-emerald-400">Controle Financeiro</h1>
+            <!-- Seletor de Perfil -->
+            <select id="filtroUsuario" onchange="mudarUsuario()" class="bg-slate-900 border border-slate-700 rounded p-1 text-sm text-white focus:outline-none focus:border-emerald-500 font-semibold">
+                <option value="Eduardo">Eduardo</option>
+                <option value="Amor">Amor</option> <!-- Troque pelo nome dela se preferir -->
+            </select>
+        </div>
 
         <!-- Formulário de cadastro -->
         <form id="formGasto" class="space-y-4">
@@ -59,17 +66,26 @@
     </div>
 
     <script>
-       const API_URL = 'https://controle-financeiro-v2ol.onrender.com/transacoes';
+        const API_URL = 'https://controle-financeiro-v2ol.onrender.com/transacoes';
 
-        // Preencher a data de hoje automaticamente
         document.getElementById('data').valueAsDate = new Date();
+
+        function getUsuarioAtual() {
+            return document.getElementById('filtroUsuario').value;
+        }
 
         async function carregarTransacoes() {
             try {
-                const res = await fetch(API_URL);
+                const usuario = getUsuarioAtual();
+                const res = await fetch(`${API_URL}?usuario=${encodeURIComponent(usuario)}`);
                 const dados = await res.json();
                 const lista = document.getElementById('listaTransacoes');
                 lista.innerHTML = '';
+
+                if (dados.length === 0) {
+                    lista.innerHTML = '<p class="text-xs text-slate-500 text-center py-2">Nenhuma transação encontrada.</p>';
+                    return;
+                }
 
                 dados.forEach(item => {
                     const div = document.createElement('div');
@@ -95,25 +111,48 @@
             }
         }
 
+        function mudarUsuario() {
+            carregarTransacoes();
+        }
+
         document.getElementById('formGasto').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = {
-                descricao: document.getElementById('descricao').value,
-                valor: parseFloat(document.getElementById('valor').value),
-                tipo: document.getElementById('tipo').value,
-                categoria: document.getElementById('categoria').value,
-                data: document.getElementById('data').value
-            };
+            
+            const btn = document.querySelector('button[type="submit"]');
+            const textoOriginal = btn.innerText;
+            btn.innerText = 'Salvando...';
+            btn.disabled = true;
 
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const payload = {
+                    usuario: getUsuarioAtual(),
+                    descricao: document.getElementById('descricao').value,
+                    valor: parseFloat(document.getElementById('valor').value),
+                    tipo: document.getElementById('tipo').value,
+                    categoria: document.getElementById('categoria').value,
+                    data: document.getElementById('data').value
+                };
 
-            document.getElementById('descricao').value = '';
-            document.getElementById('valor').value = '';
-            carregarTransacoes();
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const erro = await response.json();
+                    alert('Erro no servidor: ' + erro.erro);
+                } else {
+                    document.getElementById('descricao').value = '';
+                    document.getElementById('valor').value = '';
+                    carregarTransacoes();
+                }
+            } catch (error) {
+                alert('Erro ao conectar com a API.');
+            } finally {
+                btn.innerText = textoOriginal;
+                btn.disabled = false;
+            }
         });
 
         async function deletar(id) {
